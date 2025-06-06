@@ -32,7 +32,7 @@ func MustLoad() *Config {
 	return &Config{
 		Env:               getEnv("ENV", "local"),
 		Address:           getEnv("SERVICE_ADDRESS", ":8080"),
-		LocalAddress:      getEnv("LOCAL_ADDRESS", "localhost:8080"),
+		LocalAddress:      getEnv("LOCAL_ADDRESS", "0.0.0.0:8080"),
 		ChatAddress:       getEnv("CHAT_SERVICE_ADDRESS", ""),
 		PlacesAddress:     getEnv("PLACES_SERVICE_ADDRESS", ""),
 		CharityAddress:    getEnv("CHARITY_SERVICE_ADDRESS", ""),
