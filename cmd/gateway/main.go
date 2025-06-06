@@ -1,19 +1,35 @@
 package main
 
 import (
+	"context"
+	"log"
+	"log/slog"
+	"net/http"
+	"os"
+
 	"github.com/GP-Hacks/kdt2024-commons/api/proto"
 	"github.com/GP-Hacks/kdt2024-commons/prettylogger"
 	"github.com/GP-Hacks/kdt2024-gateway/config"
+	authclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/auth"
 	charityclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/charity"
 	chatclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/chat"
 	placesclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/places"
+	usersclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/users"
 	votesclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/votes"
+	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/auth"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/charity"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/chat"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/places"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/tokens"
+	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/users"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/votes"
+	"github.com/GP-Hacks/kdt2024-gateway/internal/kafka"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/storage"
+	websocket "github.com/GP-Hacks/kdt2024-gateway/internal/web_socket"
+	proto_auth "github.com/GP-Hacks/proto/pkg/api/auth"
+	proto_charity "github.com/GP-Hacks/proto/pkg/api/charity"
+	proto_chat "github.com/GP-Hacks/proto/pkg/api/chat"
+	proto_users "github.com/GP-Hacks/proto/pkg/api/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,9 +37,6 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	httpSwagger "github.com/swaggo/http-swagger"
-	"log/slog"
-	"net/http"
-	"os"
 )
 
 var (
@@ -102,7 +115,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	router := setupRouter(cfg, log, chatClient, placesClient, charityClient, votesClient)
+	authClient, err := setupAuthClient(cfg, log)
+	if err != nil {
+		log.Error("Failed to setup AuthClient", slog.String("address", cfg.ChatAddress), slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	usersClient, err := setupUsersClient(cfg, log)
+	if err != nil {
+		log.Error("Failed to setup UsersClient", slog.String("address", cfg.ChatAddress), slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	ks := setupKafka(cfg)
+	defer ks.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := ks.StartResponseConsumer(ctx); err != nil {
+		log.Error("Failed to start response consumer", slog.String("error", err.Error()))
+	}
+
+	hub := setupWebSocket()
+
+	router := setupRouter(cfg, log, charityClient, chatClient, placesClient, votesClient, authClient, usersClient, ks, hub)
 	startServer(cfg, router, log)
 }
 
@@ -116,7 +153,7 @@ func connectToMongoDB(cfg *config.Config, log *slog.Logger) error {
 	return nil
 }
 
-func setupChatClient(cfg *config.Config, log *slog.Logger) (proto.ChatServiceClient, error) {
+func setupChatClient(cfg *config.Config, log *slog.Logger) (proto_chat.ChatServiceClient, error) {
 	log.Debug("Setting up ChatClient", slog.String("address", cfg.ChatAddress))
 	client, err := chatclient.SetupChatClient(cfg.ChatAddress, log)
 	if err != nil {
@@ -136,7 +173,7 @@ func setupPlacesClient(cfg *config.Config, log *slog.Logger) (proto.PlacesServic
 	return client, nil
 }
 
-func setupCharityClient(cfg *config.Config, log *slog.Logger) (proto.CharityServiceClient, error) {
+func setupCharityClient(cfg *config.Config, log *slog.Logger) (proto_charity.CharityServiceClient, error) {
 	log.Debug("Setting up CharityClient", slog.String("address", cfg.CharityAddress))
 	client, err := charityclient.SetupCharityClient(cfg.CharityAddress, log)
 	if err != nil {
@@ -156,7 +193,23 @@ func setupVotesClient(cfg *config.Config, log *slog.Logger) (proto.VotesServiceC
 	return client, nil
 }
 
-func setupRouter(cfg *config.Config, log *slog.Logger, chatClient proto.ChatServiceClient, placesClient proto.PlacesServiceClient, charityClient proto.CharityServiceClient, votesClient proto.VotesServiceClient) *chi.Mux {
+func setupAuthClient(cfg *config.Config, log *slog.Logger) (proto_auth.AuthServiceClient, error) {
+	client, err := authclient.SetupAuthClient(cfg.AuthAddress, log)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func setupUsersClient(cfg *config.Config, log *slog.Logger) (proto_users.UserServiceClient, error) {
+	client, err := usersclient.SetupUsersClient(cfg.UsersAddress, log)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_charity.CharityServiceClient, chatClient proto_chat.ChatServiceClient, placesClient proto.PlacesServiceClient, votesClient proto.VotesServiceClient, authClient proto_auth.AuthServiceClient, usersClient proto_users.UserServiceClient, ks *kafka.KafkaService, hub *websocket.Hub) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
@@ -179,7 +232,11 @@ func setupRouter(cfg *config.Config, log *slog.Logger, chatClient proto.ChatServ
 	),
 	)
 
-	router.Post("/api/chat/ask", chat.NewSendMessageHandler(log, chatClient))
+	router.Get("/api/chat/ws", func(w http.ResponseWriter, r *http.Request) {
+		websocket.ServeWS(hub, ks, cfg.ResponseTimeout, w, r)
+	})
+	router.Get("/api/chat/history", chat.NewGetHistoryHandler(log, chatClient))
+
 	router.Post("/api/user/token", tokens.NewAddTokenHandler(log))
 
 	router.Post("/api/places", places.NewGetPlacesHandler(log, placesClient))
@@ -197,6 +254,16 @@ func setupRouter(cfg *config.Config, log *slog.Logger, chatClient proto.ChatServ
 	router.Post("/api/votes/rate", votes.NewVoteRateHandler(log, votesClient))
 	router.Post("/api/votes/petition", votes.NewVotePetitionHandler(log, votesClient))
 	router.Post("/api/votes/choice", votes.NewVoteChoiceHandler(log, votesClient))
+
+	router.Post("/api/auth/sign_up", auth.NewSignUpHandler(log, authClient))
+	router.Post("/api/auth/sign_in", auth.NewSignInHandler(log, authClient))
+	router.Post("/api/auth/refresh_tokens", auth.NewRefreshTokensHandler(authClient))
+	router.Post("/api/auth/logout", auth.NewLogoutHandler(authClient))
+	router.Get("/api/auth/confirm/{token}", auth.NewConfirmEmailPageHandler(authClient))
+
+	router.Get("/api/users/me", users.NewGetMeHandler(usersClient))
+	router.Post("/api/users/update", users.NewUpdateHandler(usersClient))
+	router.Post("/api/users/upload_avatar", users.NewUploadAvatarHandler(usersClient))
 
 	router.Handle("/metrics", promhttp.Handler())
 
@@ -257,4 +324,20 @@ func getMemoryUsage() float64 {
 		return 0.0
 	}
 	return vmStat.UsedPercent
+}
+
+func setupWebSocket() *websocket.Hub {
+	hub := websocket.NewHub()
+	go hub.Run()
+
+	return hub
+}
+
+func setupKafka(config *config.Config) *kafka.KafkaService {
+	kafkaService, err := kafka.NewKafkaService(config)
+	if err != nil {
+		log.Fatalf("Ошибка создания Kafka сервиса: %v", err)
+	}
+
+	return kafkaService
 }
