@@ -1,20 +1,20 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-COPY gateway/go.mod gateway/go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-WORKDIR /app/gateway/cmd/gateway
-RUN go build -o gateway_service
+WORKDIR /app/cmd/gateway
+RUN go build -v -o gateway_service
 
 FROM alpine:latest
 WORKDIR /root/
 
-COPY --from=builder /app/gateway/cmd/gateway/gateway_service .
-COPY --from=builder /app/gateway/cmd/docs/swagger.yaml .
+COPY --from=builder /app/cmd/gateway/gateway_service .
+COPY --from=builder /app/cmd/docs/swagger.yaml .
 
 EXPOSE 8080
 
