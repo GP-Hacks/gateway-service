@@ -1,13 +1,15 @@
 package charity
 
 import (
-	"github.com/GP-Hacks/kdt2024-commons/api/proto"
+	proto "github.com/GP-Hacks/proto/pkg/api/charity"
+
+	"log/slog"
+	"net/http"
+
 	"github.com/GP-Hacks/kdt2024-commons/json"
 	"github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log/slog"
-	"net/http"
 )
 
 type GetCollectionsResponseWithDefault struct {

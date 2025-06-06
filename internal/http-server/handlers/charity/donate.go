@@ -1,13 +1,14 @@
 package charity
 
 import (
-	"github.com/GP-Hacks/kdt2024-commons/api/proto"
+	"log/slog"
+	"net/http"
+
 	"github.com/GP-Hacks/kdt2024-commons/json"
+	proto "github.com/GP-Hacks/proto/pkg/api/charity"
 	"github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log/slog"
-	"net/http"
 )
 
 func NewDonateHandler(log *slog.Logger, charityClient proto.CharityServiceClient) http.HandlerFunc {
