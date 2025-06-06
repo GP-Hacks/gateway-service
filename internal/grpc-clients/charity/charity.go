@@ -3,11 +3,12 @@ package grpc_clients
 import (
 	"context"
 	"fmt"
-	"github.com/GP-Hacks/kdt2024-commons/api/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log/slog"
 	"time"
+
+	proto "github.com/GP-Hacks/proto/pkg/api/charity"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func SetupCharityClient(address string, log *slog.Logger) (proto.CharityServiceClient, error) {
