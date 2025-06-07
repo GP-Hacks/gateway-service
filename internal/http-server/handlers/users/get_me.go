@@ -1,6 +1,7 @@
 package users
 
 import (
+	"log"
 	"net/http"
 
 	common "github.com/GP-Hacks/kdt2024-commons/json"
@@ -41,6 +42,7 @@ func NewGetMeHandler(userClient proto.UserServiceClient) http.HandlerFunc {
 				common.WriteError(w, http.StatusNotFound, "User not found")
 				return
 			}
+			log.Print(err)
 			common.WriteError(w, http.StatusInternalServerError, "")
 			return
 		}
