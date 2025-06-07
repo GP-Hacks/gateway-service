@@ -46,10 +46,14 @@ func NewGetMeHandler(userClient proto.UserServiceClient) http.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"id":         resp.Id,
-			"user":       resp.User,
-			"avatar_url": resp.AvatarURL,
-			"status":     resp.Status,
+			"id":            resp.Id,
+			"email":         resp.User.Email,
+			"first_name":    resp.User.FirstName,
+			"last_name":     resp.User.LastName,
+			"surname":       resp.User.Surname,
+			"date_of_birth": resp.User.DateOfBirth.AsTime(),
+			"avatar_url":    resp.AvatarURL,
+			"status":        resp.Status,
 		}
 
 		common.WriteJSON(w, http.StatusOK, response)
