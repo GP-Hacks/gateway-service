@@ -1,6 +1,7 @@
 package users
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -66,6 +67,7 @@ func NewUpdateHandler(userClient proto.UserServiceClient) http.HandlerFunc {
 				common.WriteError(w, http.StatusNotFound, "User not found")
 				return
 			}
+			log.Print(err)
 			common.WriteError(w, http.StatusInternalServerError, "")
 			return
 		}
