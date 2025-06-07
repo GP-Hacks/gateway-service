@@ -25,6 +25,7 @@ func NewConfirmEmailPageHandler(authClient proto.AuthServiceClient) http.Handler
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`
    			<html>
+			<head><meta charset="utf-8"/></head>
    			<body>
    				<h1>Ошибка подтверждения email</h1>
    				<p>Неверная ссылка для подтверждения</p>
@@ -46,6 +47,7 @@ func NewConfirmEmailPageHandler(authClient proto.AuthServiceClient) http.Handler
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`
    			<html>
+						<head><meta charset="utf-8"/></head>
    			<body>
    				<h1>Ошибка подтверждения email</h1>
    				<p>Неверный или истекший токен подтверждения</p>
@@ -58,6 +60,7 @@ func NewConfirmEmailPageHandler(authClient proto.AuthServiceClient) http.Handler
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`
    		<html>
+					<head><meta charset="utf-8"/></head>
    		<body>
    			<h1>Email успешно подтвержден!</h1>
    			<p>Ваш email адрес был успешно подтвержден. Теперь вы можете войти в систему.</p>
