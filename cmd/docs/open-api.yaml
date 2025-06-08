@@ -1,0 +1,1998 @@
+openapi: 3.0.3
+info:
+  title: Карта жителя Республики Татарстан API
+  description: API сервиса "Карта жителя Республики Татарстан" для управления пользователями и сервисами
+  version: 1.0.0
+  contact:
+    name: API Support
+servers:
+  - url: https://tatarstan-card.ru
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Операции аутентификации и авторизации
+  - name: Users
+    description: Управление пользователями и профилями
+  - name: Chat Bot
+    description: Взаимодействие с чат-ботом
+  - name: Places
+    description: Управление местами и билетами
+  - name: Charity
+    description: Благотворительные сборы и пожертвования
+  - name: Votes
+    description: Голосования и опросы
+
+paths:
+  /api/auth/sign_up:
+    post:
+      tags:
+        - Authentication
+      summary: Регистрация нового пользователя
+      description: Создание нового аккаунта пользователя с отправкой письма подтверждения
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+            example:
+              email: "user@example.com"
+              first_name: "Иван"
+              last_name: "Иванов" 
+              surname: "Иванович"
+              password: "securePassword123"
+              date_of_birth: "1990-01-15T00:00:00Z"
+      responses:
+        '200':
+          description: Пользователь успешно зарегистрирован
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '208':
+          description: Пользователь уже существует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/sign_in:
+    post:
+      tags:
+        - Authentication
+      summary: Вход в систему
+      description: Аутентификация пользователя по email и паролю
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+            example:
+              email: "user@example.com"
+              password: "securePassword123"
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokensResponse'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/refresh_tokens:
+    post:
+      tags:
+        - Authentication
+      summary: Обновление токенов
+      description: Получение новой пары access и refresh токенов
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokensRequest'
+            example:
+              refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Токены успешно обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokensResponse'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Недействительный refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Выход из системы
+      description: Аннулирование токенов пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            example:
+              tokens:
+                access: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                refresh: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Успешный выход из системы
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/confirm/{token}:
+    get:
+      tags:
+        - Authentication
+      summary: Подтверждение email
+      description: Подтверждение email адреса пользователя по токену
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Токен подтверждения email
+          schema:
+            type: string
+            example: "abc123def456ghi789"
+      responses:
+        '200':
+          description: Email успешно подтвержден
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<html><body><h1>Email подтвержден!</h1><p>Ваш email успешно подтвержден.</p></body></html>"
+        '400':
+          description: Некорректный или истекший токен
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<html><body><h1>Ошибка!</h1><p>Токен недействителен или истек.</p></body></html>"
+
+  /api/auth/resend_confirmation_mail:
+    post:
+      tags:
+        - Authentication
+      summary: Повторная отправка письма подтверждения
+      description: Отправка нового письма с токеном подтверждения email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendConfirmationRequest'
+            example:
+              email: "user@example.com"
+      responses:
+        '200':
+          description: Письмо отправлено
+
+  /api/users/token:
+    post:
+      tags:
+        - Users
+      summary: Добавление токена устройства
+      description: Регистрация токена мобильного устройства для получения push-уведомлений
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddDeviceTokenRequest'
+            example:
+              token: "dGVzdF90b2tlbl9mb3JfcHVzaF9ub3RpZmljYXRpb25z"
+      responses:
+        '200':
+          description: Токен устройства успешно добавлен
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/users/me:
+    get:
+      tags:
+        - Users
+      summary: Получение информации о текущем пользователе
+      description: Возвращает данные профиля авторизованного пользователя
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/users/update:
+    post:
+      tags:
+        - Users
+      summary: Обновление профиля пользователя
+      description: |
+        Обновление данных профиля пользователя.
+        
+        **Важно:** Поле email передается в запросе, но не изменяется на сервере.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              user:
+                email: "user@example.com"
+                first_name: "Иван"
+                last_name: "Петров"
+                surname: "Сидорович"
+                date_of_birth: "1990-01-15T00:00:00Z"
+      responses:
+        '200':
+          description: Профиль успешно обновлен
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Пользователь не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/users/upload_avatar:
+    post:
+      tags:
+        - Users
+      summary: Загрузка аватара пользователя
+      description: Загрузка изображения аватара для профиля пользователя
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadAvatarRequest'
+            example:
+              photo: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+      responses:
+        '200':
+          description: Аватар успешно загружен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadAvatarResponse'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/chat/history:
+    get:
+      tags:
+        - Chat Bot
+      summary: Получение истории чата
+      description: Возвращает историю сообщений чата с ботом для авторизованного пользователя
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Количество сообщений для возврата
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+            example: 10
+        - name: offset
+          in: query
+          description: Смещение для пагинации
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+            example: 0
+      responses:
+        '200':
+          description: История чата
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatHistoryMessage'
+                  total:
+                    type: integer
+                    description: Общее количество сообщений
+                    example: 150
+                  limit:
+                    type: integer
+                    description: Лимит сообщений в ответе
+                    example: 10
+                  offset:
+                    type: integer
+                    description: Смещение
+                    example: 0
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/chat/ws:
+    get:
+      tags:
+        - Chat Bot
+      summary: WebSocket соединение для чата
+      description: |
+        Устанавливает WebSocket соединение для реального времени общения с чат-ботом.
+        
+        **Протокол WebSocket:**
+        
+        **Отправка сообщения:**
+        ```json
+        {
+          "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+          "content": "Привет, как дела?"
+        }
+        ```
+        
+        **Успешный ответ бота:**
+        ```json
+        {
+          "status": "success",
+          "content": "Привет! У меня всё отлично. Как дела у тебя?",
+          "created_at": "2024-01-15T10:30:45Z"
+        }
+        ```
+        
+        **Ответ с ошибкой:**
+        ```json
+        {
+          "status": "error",
+          "error": "Некорректный токен авторизации",
+          "created_at": "2024-01-15T10:30:45Z"
+        }
+        ```
+      responses:
+        '101':
+          description: Switching Protocols - WebSocket соединение установлено
+        '400':
+          description: Некорректный запрос для upgrade WebSocket
+        '401':
+          description: Не авторизован
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /api/places:
+    post:
+      tags:
+        - Places
+      summary: Получение списка мест
+      description: Возвращает список мест по указанной категории
+      parameters:
+        - name: category
+          in: query
+          required: true
+          description: Категория мест для поиска
+          schema:
+            type: string
+            example: "музеи"
+      responses:
+        '200':
+          description: Список мест успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPlacesResponse'
+        '400':
+          description: Некорректный параметр category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Места не найдены для указанной категории
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/places/categories:
+    get:
+      tags:
+        - Places
+      summary: Получение списка категорий мест
+      description: Возвращает все доступные категории мест
+      responses:
+        '200':
+          description: Список категорий успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCategoriesResponse'
+        '404':
+          description: Категории не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/places/tickets:
+    get:
+      tags:
+        - Places
+      summary: Получение билетов пользователя
+      description: Возвращает список купленных билетов авторизованного пользователя
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Список билетов успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTicketsResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Билеты не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/places/buy:
+    post:
+      tags:
+        - Places
+      summary: Покупка билета
+      description: Покупка билета на посещение места в указанное время
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuyTicketRequest'
+            example:
+              place_id: 123
+              timestamp: "2024-01-15T14:30:00Z"
+      responses:
+        '200':
+          description: Билет успешно куплен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuyTicketResponse'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Место не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/charity:
+    get:
+      tags:
+        - Charity
+      summary: Получение списка благотворительных сборов
+      description: Возвращает список благотворительных сборов по указанной категории
+      parameters:
+        - name: category
+          in: query
+          required: true
+          description: Категория благотворительных сборов
+          schema:
+            type: string
+            example: "дети"
+      responses:
+        '200':
+          description: Список сборов успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCollectionsResponse'
+        '400':
+          description: Некорректный параметр category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Сборы не найдены для указанной категории
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/charity/categories:
+    get:
+      tags:
+        - Charity
+      summary: Получение списка категорий благотворительности
+      description: Возвращает все доступные категории благотворительных сборов
+      responses:
+        '200':
+          description: Список категорий успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetCharityCategoriesResponse'
+        '404':
+          description: Категории не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/charity/donate:
+    post:
+      tags:
+        - Charity
+      summary: Пожертвование на благотворительный сбор
+      description: Совершение пожертвования на указанный благотворительный сбор
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DonateRequest'
+            example:
+              collection_id: 456
+              amount: 1000
+      responses:
+        '200':
+          description: Пожертвование успешно совершено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonateResponse'
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Благотворительный сбор не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/votes:
+    get:
+      tags:
+        - Votes
+      summary: Получение списка голосований
+      description: Возвращает список голосований по указанной категории
+      parameters:
+        - name: category
+          in: query
+          required: true
+          description: Категория голосований (choice, petition, rate или all)
+          schema:
+            type: string
+            enum: [choice, petition, rate, all]
+            example: "choice"
+      responses:
+        '200':
+          description: Список голосований успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVotesResponse'
+        '400':
+          description: Некорректный параметр category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/votes/categories:
+    get:
+      tags:
+        - Votes
+      summary: Получение списка категорий голосований
+      description: Возвращает все доступные категории голосований
+      responses:
+        '200':
+          description: Список категорий успешно получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetVotesCategoriesResponse'
+        '404':
+          description: Категории не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/votes/info:
+    get:
+      tags:
+        - Votes
+      summary: Получение детальной информации о голосовании
+      description: |
+        Возвращает подробную информацию о голосовании включая статистику.
+        
+        Авторизация опциональна - если пользователь авторизован, то показывается его выбор.
+      parameters:
+        - name: vote_id
+          in: query
+          required: true
+          description: Идентификатор голосования
+          schema:
+            type: integer
+            minimum: 1
+            example: 123
+      security:
+        - BearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Информация о голосовании успешно получена
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ChoiceVoteInfoResponse'
+                  - $ref: '#/components/schemas/PetitionVoteInfoResponse'
+                  - $ref: '#/components/schemas/RateVoteInfoResponse'
+        '400':
+          description: Некорректный параметр vote_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Голосование не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/votes/choice:
+    post:
+      tags:
+        - Votes
+      summary: Голосование выбором
+      description: Участие в голосовании с выбором одного из предложенных вариантов
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteChoiceRequest'
+            example:
+              vote_id: 123
+              choice: "Вариант 1"
+      responses:
+        '200':
+          description: Голос успешно записан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    example: "Vote recorded successfully"
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Голосование или вариант выбора не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/votes/petition:
+    post:
+      tags:
+        - Votes
+      summary: Голосование по петиции
+      description: Поддержка или отклонение петиции
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VotePetitionRequest'
+            example:
+              vote_id: 124
+              support: "yes"
+      responses:
+        '200':
+          description: Голос успешно записан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Голос по петиции записан"
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/votes/rate:
+    post:
+      tags:
+        - Votes
+      summary: Рейтинговое голосование
+      description: Голосование с выставлением оценки
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteRateRequest'
+            example:
+              vote_id: 125
+              rating: 4.5
+      responses:
+        '200':
+          description: Оценка успешно записана
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Оценка записана"
+        '400':
+          description: Некорректные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout - превышено время ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SignUpRequest:
+      type: object
+      required:
+        - email
+        - first_name
+        - last_name
+        - surname
+        - password
+        - date_of_birth
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email адрес пользователя
+          example: "user@example.com"
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+        surname:
+          type: string
+          description: Отчество пользователя
+          example: "Иванович"
+        password:
+          type: string
+          format: password
+          description: Пароль пользователя
+          minLength: 8
+          example: "securePassword123"
+        date_of_birth:
+          type: string
+          format: date-time
+          description: Дата рождения пользователя
+          example: "1990-01-15T00:00:00Z"
+
+    SignInRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email адрес пользователя
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          description: Пароль пользователя
+          example: "securePassword123"
+
+    RefreshTokensRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token для получения новых токенов
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    LogoutRequest:
+      type: object
+      required:
+        - tokens
+      properties:
+        tokens:
+          type: object
+          required:
+            - access
+            - refresh
+          properties:
+            access:
+              type: string
+              description: Access token
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            refresh:
+              type: string
+              description: Refresh token
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    ResendConfirmationRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email адрес для повторной отправки письма
+          example: "user@example.com"
+
+    TokensResponse:
+      type: object
+      properties:
+        refresh:
+          type: string
+          description: Refresh token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        access:
+          type: string
+          description: Access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    AddDeviceTokenRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: Токен мобильного устройства для push-уведомлений
+          example: "dGVzdF90b2tlbl9mb3JfcHVzaF9ub3RpZmljYXRpb25z"
+
+    UserProfileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор пользователя
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+          example: "user@example.com"
+        first_name:
+          type: string
+          description: Имя пользователя
+          example: "Иван"
+        last_name:
+          type: string
+          description: Фамилия пользователя
+          example: "Иванов"
+        surname:
+          type: string
+          description: Отчество пользователя
+          example: "Иванович"
+        date_of_birth:
+          type: string
+          format: date-time
+          description: Дата рождения пользователя
+          example: "1990-01-15T00:00:00Z"
+        avatar_url:
+          type: string
+          format: uri
+          description: URL аватара пользователя
+          example: "https://cdn.example.com/avatars/user123.jpg"
+          nullable: true
+        status:
+          type: string
+          description: Статус пользователя
+          example: "active"
+
+    UpdateUserRequest:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          type: object
+          required:
+            - email
+            - first_name
+            - last_name
+            - surname
+            - date_of_birth
+          properties:
+            email:
+              type: string
+              format: email
+              description: Email пользователя (передается, но не изменяется)
+              example: "user@example.com"
+            first_name:
+              type: string
+              description: Имя пользователя
+              example: "Иван"
+            last_name:
+              type: string
+              description: Фамилия пользователя
+              example: "Петров"
+            surname:
+              type: string
+              description: Отчество пользователя
+              example: "Сидорович"
+            date_of_birth:
+              type: string
+              format: date-time
+              description: Дата рождения пользователя
+              example: "1990-01-15T00:00:00Z"
+
+    UploadAvatarRequest:
+      type: object
+      required:
+        - photo
+      properties:
+        photo:
+          type: string
+          format: byte
+          description: Изображение аватара в формате base64
+          example: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+    UploadAvatarResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL загруженного аватара
+          example: "https://cdn.example.com/avatars/user123_new.jpg"
+
+    ChatHistoryMessage:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Содержимое сообщения
+          example: "Привет! Как дела?"
+        role:
+          type: string
+          enum: [user, bot]
+          description: Роль отправителя сообщения
+          example: "user"
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания сообщения
+          example: "2024-01-15T10:30:45Z"
+
+    WebSocketRequestMessage:
+      type: object
+      required:
+        - auth_token
+        - content
+      properties:
+        auth_token:
+          type: string
+          description: JWT токен для авторизации
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        content:
+          type: string
+          description: Текст сообщения пользователя
+          example: "Привет, как дела?"
+
+    WebSocketSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+          description: Статус ответа
+          example: "success"
+        content:
+          type: string
+          description: Ответ чат-бота
+          example: "Привет! У меня всё отлично. Как дела у тебя?"
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания ответа
+          example: "2024-01-15T10:30:45Z"
+
+    WebSocketErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+          description: Статус ответа
+          example: "error"
+        error:
+          type: string
+          description: Описание ошибки
+          example: "Некорректный токен авторизации"
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания ответа об ошибке
+          example: "2024-01-15T10:30:45Z"
+
+    GetPlacesResponse:
+      type: object
+      properties:
+        response:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+
+    Place:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор места
+          example: 123
+        category:
+          type: string
+          description: Категория места
+          example: "музеи"
+        description:
+          type: string
+          description: Описание места
+          example: "Национальный музей Республики Татарстан"
+        latitude:
+          type: number
+          format: double
+          description: Широта
+          example: 55.796127
+        longitude:
+          type: number
+          format: double
+          description: Долгота
+          example: 49.106414
+        location:
+          type: string
+          description: Адрес места
+          example: "г. Казань, ул. Кремлевская, 2"
+        name:
+          type: string
+          description: Название места
+          example: "Национальный музей РТ"
+        tel:
+          type: string
+          description: Телефон
+          example: "+7 (843) 292-89-84"
+        website:
+          type: string
+          description: Веб-сайт
+          example: "https://tatmuseum.ru"
+        cost:
+          type: integer
+          description: Стоимость посещения в рублях
+          example: 200
+        times:
+          type: array
+          items:
+            type: string
+          description: Доступное время для посещения
+          example: ["10:00", "12:00", "14:00", "16:00"]
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Photo'
+          description: Фотографии места
+
+    Photo:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL фотографии
+          example: "https://cdn.example.com/photos/museum1.jpg"
+        description:
+          type: string
+          description: Описание фотографии
+          example: "Главный зал музея"
+
+    GetCategoriesResponse:
+      type: object
+      properties:
+        response:
+          type: array
+          items:
+            type: string
+          description: Список доступных категорий
+          example: ["музеи", "театры", "парки", "памятники"]
+
+    GetTicketsResponse:
+      type: object
+      properties:
+        response:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор билета
+          example: 456
+        name:
+          type: string
+          description: Название места
+          example: "Национальный музей РТ"
+        location:
+          type: string
+          description: Адрес места
+          example: "г. Казань, ул. Кремлевская, 2"
+        event_time:
+          type: string
+          description: Время посещения в формате YYYY-MM-DD HH:mm:ss
+          example: "2024-01-15 14:30:00"
+
+    BuyTicketRequest:
+      type: object
+      required:
+        - place_id
+        - timestamp
+      properties:
+        place_id:
+          type: integer
+          description: Идентификатор места для посещения
+          minimum: 1
+          example: 123
+        timestamp:
+          type: string
+          format: date-time
+          description: Время посещения
+          example: "2024-01-15T14:30:00Z"
+
+    BuyTicketResponse:
+      type: object
+      properties:
+        ticket_id:
+          type: integer
+          description: Идентификатор созданного билета
+          example: 789
+        message:
+          type: string
+          description: Сообщение о результате операции
+          example: "Билет успешно куплен"
+        place_name:
+          type: string
+          description: Название места
+          example: "Национальный музей РТ"
+        visit_time:
+          type: string
+          format: date-time
+          description: Время посещения
+          example: "2024-01-15T14:30:00Z"
+
+    GetCollectionsResponse:
+      type: object
+      properties:
+        response:
+          type: array
+          items:
+            $ref: '#/components/schemas/CharityCollection'
+
+    CharityCollection:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор сбора
+          example: 456
+        category:
+          type: string
+          description: Категория благотворительного сбора
+          example: "дети"
+        name:
+          type: string
+          description: Название сбора
+          example: "Помощь детскому дому №5"
+        description:
+          type: string
+          description: Описание сбора
+          example: "Сбор средств на новогодние подарки для детей"
+        organization:
+          type: string
+          description: Организация, проводящая сбор
+          example: "Благотворительный фонд 'Детство'"
+        phone:
+          type: string
+          description: Контактный телефон
+          example: "+7 (843) 123-45-67"
+        website:
+          type: string
+          description: Веб-сайт организации
+          example: "https://charity-fund.ru"
+        goal:
+          type: integer
+          description: Цель сбора в рублях
+          example: 500000
+        current:
+          type: integer
+          description: Текущая собранная сумма в рублях
+          example: 275000
+        photo:
+          type: string
+          description: URL фотографии сбора
+          example: "https://cdn.example.com/charity/collection456.jpg"
+
+    GetCharityCategoriesResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: string
+          description: Список доступных категорий благотворительности
+          example: ["дети", "животные", "медицина", "образование", "экология"]
+
+    DonateRequest:
+      type: object
+      required:
+        - collection_id
+        - amount
+      properties:
+        collection_id:
+          type: integer
+          description: Идентификатор благотворительного сбора
+          minimum: 1
+          example: 456
+        amount:
+          type: integer
+          description: Сумма пожертвования в рублях
+          minimum: 1
+          example: 1000
+
+    DonateResponse:
+      type: object
+      properties:
+        donation_id:
+          type: integer
+          description: Идентификатор пожертвования
+          example: 789
+        message:
+          type: string
+          description: Сообщение о результате операции
+          example: "Пожертвование успешно совершено"
+        collection_name:
+          type: string
+          description: Название сбора
+          example: "Помощь детскому дому №5"
+        amount:
+          type: integer
+          description: Сумма пожертвования
+          example: 1000
+        timestamp:
+          type: string
+          format: date-time
+          description: Время совершения пожертвования
+          example: "2024-01-15T14:30:00Z"
+
+    GetVotesResponse:
+      type: object
+      properties:
+        response:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vote'
+
+    Vote:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор голосования
+          example: 123
+        category:
+          type: string
+          enum: [choice, petition, rate]
+          description: Категория голосования
+          example: "choice"
+        name:
+          type: string
+          description: Название голосования
+          example: "Выбор дизайна нового парка"
+        description:
+          type: string
+          description: Описание голосования
+          example: "Помогите выбрать лучший дизайн для нового городского парка"
+        organization:
+          type: string
+          description: Организация, проводящая голосование
+          example: "Администрация города Казани"
+        end:
+          type: string
+          format: date-time
+          description: Дата окончания голосования
+          example: "2024-02-15T23:59:59Z"
+        photo:
+          type: string
+          description: URL фотографии голосования
+          example: "https://cdn.example.com/votes/vote123.jpg"
+        options:
+          type: array
+          items:
+            type: string
+          description: Варианты для голосования
+          example: ["Дизайн А", "Дизайн Б", "Дизайн В"]
+
+    GetVotesCategoriesResponse:
+      type: object
+      properties:
+        response:
+          type: array
+          items:
+            type: string
+          description: Список доступных категорий голосований
+          example: ["choice", "petition", "rate"]
+
+    ChoiceVoteInfoResponse:
+      type: object
+      properties:
+        response:
+          $ref: '#/components/schemas/ChoiceVoteInfo'
+
+    ChoiceVoteInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор голосования
+          example: 123
+        category:
+          type: string
+          enum: [choice]
+          description: Категория голосования
+          example: "choice"
+        name:
+          type: string
+          description: Название голосования
+          example: "Выбор дизайна нового парка"
+        description:
+          type: string
+          description: Описание голосования
+          example: "Помогите выбрать лучший дизайн для нового городского парка"
+        organization:
+          type: string
+          description: Организация, проводящая голосование
+          example: "Администрация города Казани"
+        end:
+          type: string
+          format: date-time
+          description: Дата окончания голосования
+          example: "2024-02-15T23:59:59Z"
+        photo:
+          type: string
+          description: URL фотографии голосования
+          example: "https://cdn.example.com/votes/vote123.jpg"
+        options:
+          type: array
+          items:
+            type: string
+          description: Варианты для голосования
+          example: ["Дизайн А", "Дизайн Б", "Дизайн В"]
+        stats:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Статистика голосов по вариантам
+          example:
+            "Дизайн А": 150
+            "Дизайн Б": 230
+            "Дизайн В": 95
+        choice:
+          type: string
+          description: Выбор текущего пользователя (только для авторизованных)
+          example: "Дизайн Б"
+
+    PetitionVoteInfoResponse:
+      type: object
+      properties:
+        response:
+          $ref: '#/components/schemas/PetitionVoteInfo'
+
+    PetitionVoteInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор петиции
+          example: 124
+        category:
+          type: string
+          enum: [petition]
+          description: Категория голосования
+          example: "petition"
+        name:
+          type: string
+          description: Название петиции
+          example: "За строительство велосипедных дорожек"
+        description:
+          type: string
+          description: Описание петиции
+          example: "Петиция за строительство велосипедных дорожек в центре города"
+        organization:
+          type: string
+          description: Организация, принимающая петицию
+          example: "Администрация города Казани"
+        end:
+          type: string
+          format: date-time
+          description: Дата окончания петиции
+          example: "2024-02-15T23:59:59Z"
+        photo:
+          type: string
+          description: URL фотографии петиции
+          example: "https://cdn.example.com/votes/petition124.jpg"
+        options:
+          type: array
+          items:
+            type: string
+          description: Варианты поддержки петиции
+          example: ["yes", "no"]
+        stats:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Статистика поддержки петиции
+          example:
+            "yes": 1250
+            "no": 85
+        support:
+          type: string
+          enum: [yes, no]
+          description: Поддержка текущего пользователя (только для авторизованных)
+          example: "yes"
+
+    RateVoteInfoResponse:
+      type: object
+      properties:
+        response:
+          $ref: '#/components/schemas/RateVoteInfo'
+
+    RateVoteInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор рейтингового голосования
+          example: 125
+        category:
+          type: string
+          enum: [rate]
+          description: Категория голосования
+          example: "rate"
+        name:
+          type: string
+          description: Название рейтингового голосования
+          example: "Оцените качество работы общественного транспорта"
+        description:
+          type: string
+          description: Описание рейтингового голосования
+          example: "Оцените качество работы общественного транспорта по шкале от 1 до 5"
+        organization:
+          type: string
+          description: Организация, проводящая опрос
+          example: "Управление транспорта г. Казани"
+        end:
+          type: string
+          format: date-time
+          description: Дата окончания голосования
+          example: "2024-02-15T23:59:59Z"
+        photo:
+          type: string
+          description: URL фотографии голосования
+          example: "https://cdn.example.com/votes/rate125.jpg"
+        options:
+          type: array
+          items:
+            type: string
+          description: Описание шкалы оценок
+          example: ["1 - Очень плохо", "2 - Плохо", "3 - Удовлетворительно", "4 - Хорошо", "5 - Отлично"]
+        mid:
+          type: number
+          format: double
+          description: Средняя оценка
+          example: 3.7
+        rate:
+          type: number
+          format: double
+          description: Оценка текущего пользователя (только для авторизованных)
+          example: 4.0
+
+    VoteChoiceRequest:
+      type: object
+      required:
+        - vote_id
+        - choice
+      properties:
+        vote_id:
+          type: integer
+          description: Идентификатор голосования
+          minimum: 1
+          example: 123
+        choice:
+          type: string
+          description: Выбранный вариант
+          example: "Дизайн А"
+
+    VotePetitionRequest:
+      type: object
+      required:
+        - vote_id
+        - support
+      properties:
+        vote_id:
+          type: integer
+          description: Идентификатор петиции
+          minimum: 1
+          example: 124
+        support:
+          type: string
+          enum: [yes, no]
+          description: Поддержка петиции
+          example: "yes"
+
+    VoteRateRequest:
+      type: object
+      required:
+        - vote_id
+        - rating
+      properties:
+        vote_id:
+          type: integer
+          description: Идентификатор рейтингового голосования
+          minimum: 1
+          example: 125
+        rating:
+          type: number
+          format: double
+          description: Оценка от 1 до 5
+          minimum: 1
+          maximum: 5
+          example: 4.5
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Описание ошибки
+          example: "Некорректные данные"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT токен в заголовке Authorization
+
+security:
+  - BearerAuth: []
