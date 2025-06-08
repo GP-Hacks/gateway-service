@@ -260,6 +260,7 @@ func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_chari
 	router.Post("/api/auth/refresh_tokens", auth.NewRefreshTokensHandler(authClient))
 	router.Post("/api/auth/logout", auth.NewLogoutHandler(authClient))
 	router.Get("/api/auth/confirm/{token}", auth.NewConfirmEmailPageHandler(authClient))
+	router.Post("/api/auth/resend_confirmation_mail", auth.NewResendConfiramtionMailHandler(authClient))
 
 	router.Get("/api/users/me", users.NewGetMeHandler(usersClient))
 	router.Post("/api/users/update", users.NewUpdateHandler(usersClient))

@@ -4,7 +4,6 @@ go 1.24.2
 
 require (
 	github.com/GP-Hacks/kdt2024-commons v0.0.0-20250422201548-b91a6b311bdb
-	github.com/GP-Hacks/proto v1.3.1
 	github.com/IBM/sarama v1.45.2
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/google/uuid v1.6.0
@@ -18,6 +17,7 @@ require (
 )
 
 require (
+	github.com/GP-Hacks/proto v1.3.2 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

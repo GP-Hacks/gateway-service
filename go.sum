@@ -2,6 +2,8 @@ github.com/GP-Hacks/kdt2024-commons v0.0.0-20250422201548-b91a6b311bdb h1:ndJCfd
 github.com/GP-Hacks/kdt2024-commons v0.0.0-20250422201548-b91a6b311bdb/go.mod h1:pPgdutmLDD8iHbztsQk8ZEAOapSnL2ijVaX5i0dOsA0=
 github.com/GP-Hacks/proto v1.3.1 h1:9vysxdFb8O7h3LcgnxfU8313Kf37Fj/QEnivUT4eqbY=
 github.com/GP-Hacks/proto v1.3.1/go.mod h1:bA85LnYV4CBZwtSiarvcHjhAzDu/nGd7EvI9ImTOVIc=
+github.com/GP-Hacks/proto v1.3.2 h1:rqMdJ+RB1N7DyIXmumJKiFRzjuvoococeGOesOt622g=
+github.com/GP-Hacks/proto v1.3.2/go.mod h1:bA85LnYV4CBZwtSiarvcHjhAzDu/nGd7EvI9ImTOVIc=
 github.com/IBM/sarama v1.45.2 h1:8m8LcMCu3REcwpa7fCP6v2fuPuzVwXDAM2DOv3CBrKw=
 github.com/IBM/sarama v1.45.2/go.mod h1:ppaoTcVdGv186/z6MEKsMm70A5fwJfRTpstI37kVn3Y=
 github.com/KyleBanks/depth v1.2.1 h1:5h8fQADFrWtarTdtDudMmGsC7GPbOAu6RVB3ffsVFHc=
