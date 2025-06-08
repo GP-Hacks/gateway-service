@@ -36,6 +36,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 var (
@@ -216,7 +217,7 @@ func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_chari
 	router.Use(middleware.URLFormat)
 	router.Use(prometheusMiddleware)
 
-	router.Get("/api/docs/swagger", func(w http.ResponseWriter, r *http.Request) {
+	router.Get("/swagger", func(w http.ResponseWriter, r *http.Request) {
 		yamlFile, err := os.ReadFile("/root/open-api.yaml")
 		if err != nil {
 			http.Error(w, "Unable to read swagger.yaml", http.StatusInternalServerError)
@@ -234,6 +235,7 @@ func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_chari
 		}
 		w.Write(htmlFile)
 	})
+	router.Get("/api/docs/swagger", httpSwagger.Handler(httpSwagger.URL("0.0.0.0:8080/swagger")))
 
 	router.Get("/api/chat/ws", func(w http.ResponseWriter, r *http.Request) {
 		websocket.ServeWS(hub, ks, cfg.ResponseTimeout, w, r)
