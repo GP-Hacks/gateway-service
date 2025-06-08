@@ -57,6 +57,8 @@ func NewUpdateHandler(userClient proto.UserServiceClient) http.HandlerFunc {
 			},
 		}
 
+		log.Print(req)
+
 		_, err = userClient.Update(ctx, req)
 		if err != nil {
 			if status.Code(err) == codes.Unauthenticated {
