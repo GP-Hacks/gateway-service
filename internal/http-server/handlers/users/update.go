@@ -46,6 +46,9 @@ func NewUpdateHandler(userClient proto.UserServiceClient) http.HandlerFunc {
 			return
 		}
 
+		log.Print(r)
+		log.Print(reqJ)
+
 		req := &proto.UpdateUserRequest{
 			Token: token,
 			User: &proto.User{
