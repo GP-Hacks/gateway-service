@@ -141,12 +141,6 @@ GP-Hacks/
 4. Отправьте изменения в ветку (`git push origin feature/AmazingFeature`)
 5. Создайте Pull Request
 
-## 📞 Контакты
-
-- **GitHub:** [GP-Hacks](https://github.com/GP-Hacks)
-- **Документация:** [Stoplight](https://kdt.stoplight.io/docs/kdt/vdycsik1ycmlf-karta-zhitelya-respubliki-tatarstan-api)
-- **API:** [Swagger](https://tatarstan-card.ru/api/docs/swagger)
-
 ---
 
 <div align="center">
