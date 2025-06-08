@@ -218,7 +218,7 @@ func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_chari
 	router.Use(prometheusMiddleware)
 
 	router.Get("/swagger", func(w http.ResponseWriter, r *http.Request) {
-		yamlFile, err := os.ReadFile("/root/swagger.yaml")
+		yamlFile, err := os.ReadFile("/root/open-api.yaml")
 		if err != nil {
 			http.Error(w, "Unable to read swagger.yaml", http.StatusInternalServerError)
 			return
@@ -226,18 +226,23 @@ func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_chari
 		w.Header().Set("Content-Type", "application/x-yaml")
 		_, _ = w.Write(yamlFile)
 	})
-
-	router.Get("/api/docs/*", httpSwagger.Handler(
-		httpSwagger.URL("http://95.174.92.20:8086/swagger"),
-	),
-	)
+	router.Get("/api/docs/redoc", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		htmlFile, err := os.ReadFile("/root/redoc-static.html")
+		if err != nil {
+			http.Error(w, "Unable to read redoc", http.StatusInternalServerError)
+			return
+		}
+		w.Write(htmlFile)
+	})
+	router.Get("/api/docs/swagger", httpSwagger.Handler(httpSwagger.URL("http://95.174.92.20:8080/swagger")))
 
 	router.Get("/api/chat/ws", func(w http.ResponseWriter, r *http.Request) {
 		websocket.ServeWS(hub, ks, cfg.ResponseTimeout, w, r)
 	})
 	router.Get("/api/chat/history", chat.NewGetHistoryHandler(log, chatClient))
 
-	router.Post("/api/user/token", tokens.NewAddTokenHandler(log))
+	router.Post("/api/users/token", tokens.NewAddTokenHandler(log))
 
 	router.Post("/api/places", places.NewGetPlacesHandler(log, placesClient))
 	router.Get("/api/places/categories", places.NewGetCategoriesHandler(log, placesClient))
