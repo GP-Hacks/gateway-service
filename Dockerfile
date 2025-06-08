@@ -14,7 +14,8 @@ FROM alpine:latest
 WORKDIR /root/
 
 COPY --from=builder /app/cmd/gateway/gateway_service .
-COPY --from=builder /app/cmd/docs/swagger.yaml .
+COPY --from=builder /app/cmd/docs/open-api.yaml .
+COPY --from=builder /app/cmd/docs/redoc-static.html .
 
 EXPOSE 8080
 
