@@ -2,13 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
-	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/GP-Hacks/kdt2024-commons/api/proto"
-	"github.com/GP-Hacks/kdt2024-commons/prettylogger"
 	"github.com/GP-Hacks/kdt2024-gateway/config"
 	authclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/auth"
 	charityclient "github.com/GP-Hacks/kdt2024-gateway/internal/grpc-clients/charity"
@@ -25,6 +22,7 @@ import (
 	"github.com/GP-Hacks/kdt2024-gateway/internal/http-server/handlers/votes"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/kafka"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/storage"
+	"github.com/GP-Hacks/kdt2024-gateway/internal/utils/logger"
 	websocket "github.com/GP-Hacks/kdt2024-gateway/internal/web_socket"
 	proto_auth "github.com/GP-Hacks/proto/pkg/api/auth"
 	proto_charity "github.com/GP-Hacks/proto/pkg/api/charity"
@@ -34,6 +32,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -74,142 +73,140 @@ var (
 
 func main() {
 	cfg := config.MustLoad()
-	log := prettylogger.SetupLogger(cfg.Env)
+	logger.SetupLogger(true, "http://infrastructure_vector_1:9880")
 
-	log.Info("Configuration loaded", slog.String("environment", cfg.Env))
-	log.Info("Logger initialized", slog.String("level", cfg.Env))
+	log.Info().Msg("=== Gateway starter ===")
 
 	prometheus.MustRegister(httpRequestsTotal)
 	prometheus.MustRegister(httpRequestDuration)
 	prometheus.MustRegister(cpuUsage)
 	prometheus.MustRegister(memoryUsage)
 
-	log.Info("Prometheus metrics registered")
+	log.Info().Msg("Prometheus metrics registred")
 
-	if err := connectToMongoDB(cfg, log); err != nil {
-		log.Error("Failed to connect to MongoDB", slog.String("error", err.Error()))
+	if err := connectToMongoDB(cfg); err != nil {
+		log.Fatal().Err(err).Msg("Failed connect to mongo db")
 		os.Exit(1)
 	}
 
-	chatClient, err := setupChatClient(cfg, log)
+	chatClient, err := setupChatClient(cfg)
 	if err != nil {
-		log.Error("Failed to setup ChatClient", slog.String("address", cfg.ChatAddress), slog.String("error", err.Error()))
+		log.Fatal().Err(err).Msg("Failed setup chat client")
 		os.Exit(1)
 	}
 
-	placesClient, err := setupPlacesClient(cfg, log)
+	placesClient, err := setupPlacesClient(cfg)
 	if err != nil {
-		log.Error("Failed to setup PlacesClient", slog.String("address", cfg.PlacesAddress), slog.String("error", err.Error()))
+		log.Fatal().Err(err).Msg("Failed setup places client")
 		os.Exit(1)
 	}
 
-	charityClient, err := setupCharityClient(cfg, log)
+	charityClient, err := setupCharityClient(cfg)
 	if err != nil {
-		log.Error("Failed to setup CharityClient", slog.String("address", cfg.CharityAddress), slog.String("error", err.Error()))
+		log.Fatal().Err(err).Msg("Failed setup charity client")
 		os.Exit(1)
 	}
 
-	votesClient, err := setupVotesClient(cfg, log)
+	votesClient, err := setupVotesClient(cfg)
 	if err != nil {
-		log.Error("Failed to setup VotesClient", slog.String("address", cfg.VotesAddress), slog.String("error", err.Error()))
+		log.Fatal().Err(err).Msg("Failed setup votes client")
 		os.Exit(1)
 	}
 
-	authClient, err := setupAuthClient(cfg, log)
+	authClient, err := setupAuthClient(cfg)
 	if err != nil {
-		log.Error("Failed to setup AuthClient", slog.String("address", cfg.ChatAddress), slog.String("error", err.Error()))
+		log.Fatal().Err(err).Msg("Failed setup auth client")
 		os.Exit(1)
 	}
 
-	usersClient, err := setupUsersClient(cfg, log)
+	usersClient, err := setupUsersClient(cfg)
 	if err != nil {
-		log.Error("Failed to setup UsersClient", slog.String("address", cfg.ChatAddress), slog.String("error", err.Error()))
+		log.Fatal().Err(err).Msg("Failed setup users client")
 		os.Exit(1)
 	}
 
 	ks := setupKafka(cfg)
+	log.Info().Msg("Kafka setuped")
 	defer ks.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	if err := ks.StartResponseConsumer(ctx); err != nil {
-		log.Error("Failed to start response consumer", slog.String("error", err.Error()))
+		log.Fatal().Err(err).Msg("Failed start kafka response consumer")
 	}
 
 	hub := setupWebSocket()
+	log.Info().Msg("Setup web socket hub")
 
-	router := setupRouter(cfg, log, charityClient, chatClient, placesClient, votesClient, authClient, usersClient, ks, hub)
-	startServer(cfg, router, log)
+	router := setupRouter(cfg, charityClient, chatClient, placesClient, votesClient, authClient, usersClient, ks, hub)
+	startServer(cfg, router)
 }
 
-func connectToMongoDB(cfg *config.Config, log *slog.Logger) error {
-	log.Debug("Connecting to MongoDB", slog.String("path", cfg.MongoDBPath), slog.String("name", cfg.MongoDBName), slog.String("collection", cfg.MongoDBCollection))
+func connectToMongoDB(cfg *config.Config) error {
 	err := storage.Connect(cfg.MongoDBPath, cfg.MongoDBName, cfg.MongoDBCollection)
 	if err != nil {
 		return err
 	}
-	log.Info("Connected to MongoDB", slog.String("path", cfg.MongoDBPath))
+	log.Info().Msg("Connected to mongo db")
 	return nil
 }
 
-func setupChatClient(cfg *config.Config, log *slog.Logger) (proto_chat.ChatServiceClient, error) {
-	log.Debug("Setting up ChatClient", slog.String("address", cfg.ChatAddress))
-	client, err := chatclient.SetupChatClient(cfg.ChatAddress, log)
+func setupChatClient(cfg *config.Config) (proto_chat.ChatServiceClient, error) {
+	client, err := chatclient.SetupChatClient(cfg.ChatAddress)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("ChatClient setup successfully", slog.String("address", cfg.ChatAddress))
+	log.Info().Msg("ChatClient setup successfully")
 	return client, nil
 }
 
-func setupPlacesClient(cfg *config.Config, log *slog.Logger) (proto.PlacesServiceClient, error) {
-	log.Debug("Setting up PlacesClient", slog.String("address", cfg.PlacesAddress))
-	client, err := placesclient.SetupPlacesClient(cfg.PlacesAddress, log)
+func setupPlacesClient(cfg *config.Config) (proto.PlacesServiceClient, error) {
+	client, err := placesclient.SetupPlacesClient(cfg.PlacesAddress)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("PlacesClient setup successfully", slog.String("address", cfg.PlacesAddress))
+	log.Info().Msg("PlacesClient setup successfully")
 	return client, nil
 }
 
-func setupCharityClient(cfg *config.Config, log *slog.Logger) (proto_charity.CharityServiceClient, error) {
-	log.Debug("Setting up CharityClient", slog.String("address", cfg.CharityAddress))
-	client, err := charityclient.SetupCharityClient(cfg.CharityAddress, log)
+func setupCharityClient(cfg *config.Config) (proto_charity.CharityServiceClient, error) {
+	client, err := charityclient.SetupCharityClient(cfg.CharityAddress)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("CharityClient setup successfully", slog.String("address", cfg.CharityAddress))
+	log.Info().Msg("CharityClient setup successfully")
 	return client, nil
 }
 
-func setupVotesClient(cfg *config.Config, log *slog.Logger) (proto.VotesServiceClient, error) {
-	log.Debug("Setting up VotesClient", slog.String("address", cfg.VotesAddress))
-	client, err := votesclient.SetupVotesClient(cfg.VotesAddress, log)
+func setupVotesClient(cfg *config.Config) (proto.VotesServiceClient, error) {
+	client, err := votesclient.SetupVotesClient(cfg.VotesAddress)
 	if err != nil {
 		return nil, err
 	}
-	log.Info("VotesClient setup successfully", slog.String("address", cfg.VotesAddress))
+	log.Info().Msg("VotesClient setup successfully")
 	return client, nil
 }
 
-func setupAuthClient(cfg *config.Config, log *slog.Logger) (proto_auth.AuthServiceClient, error) {
-	client, err := authclient.SetupAuthClient(cfg.AuthAddress, log)
+func setupAuthClient(cfg *config.Config) (proto_auth.AuthServiceClient, error) {
+	client, err := authclient.SetupAuthClient(cfg.AuthAddress)
 	if err != nil {
 		return nil, err
 	}
+	log.Info().Msg("AuthClient setup successfully")
 	return client, nil
 }
 
-func setupUsersClient(cfg *config.Config, log *slog.Logger) (proto_users.UserServiceClient, error) {
-	client, err := usersclient.SetupUsersClient(cfg.UsersAddress, log)
+func setupUsersClient(cfg *config.Config) (proto_users.UserServiceClient, error) {
+	client, err := usersclient.SetupUsersClient(cfg.UsersAddress)
 	if err != nil {
 		return nil, err
 	}
+	log.Info().Msg("UsersClient setup successfully")
 	return client, nil
 }
 
-func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_charity.CharityServiceClient, chatClient proto_chat.ChatServiceClient, placesClient proto.PlacesServiceClient, votesClient proto.VotesServiceClient, authClient proto_auth.AuthServiceClient, usersClient proto_users.UserServiceClient, ks *kafka.KafkaService, hub *websocket.Hub) *chi.Mux {
+func setupRouter(cfg *config.Config, charityClient proto_charity.CharityServiceClient, chatClient proto_chat.ChatServiceClient, placesClient proto.PlacesServiceClient, votesClient proto.VotesServiceClient, authClient proto_auth.AuthServiceClient, usersClient proto_users.UserServiceClient, ks *kafka.KafkaService, hub *websocket.Hub) *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
@@ -240,28 +237,28 @@ func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_chari
 	router.Get("/api/chat/ws", func(w http.ResponseWriter, r *http.Request) {
 		websocket.ServeWS(hub, ks, cfg.ResponseTimeout, w, r)
 	})
-	router.Get("/api/chat/history", chat.NewGetHistoryHandler(log, chatClient))
+	router.Get("/api/chat/history", chat.NewGetHistoryHandler(chatClient))
 
-	router.Post("/api/users/token", tokens.NewAddTokenHandler(log))
+	router.Post("/api/users/token", tokens.NewAddTokenHandler())
 
-	router.Post("/api/places", places.NewGetPlacesHandler(log, placesClient))
-	router.Get("/api/places/categories", places.NewGetCategoriesHandler(log, placesClient))
-	router.Get("/api/places/tickets", places.NewGetTicketsHandler(log, placesClient))
-	router.Post("/api/places/buy", places.NewBuyTicketHandler(log, placesClient))
+	router.Post("/api/places", places.NewGetPlacesHandler(placesClient))
+	router.Get("/api/places/categories", places.NewGetCategoriesHandler(placesClient))
+	router.Get("/api/places/tickets", places.NewGetTicketsHandler(placesClient))
+	router.Post("/api/places/buy", places.NewBuyTicketHandler(placesClient))
 
-	router.Get("/api/charity", charity.NewGetCollectionsHandler(log, charityClient))
-	router.Get("/api/charity/categories", charity.NewGetCategoriesHandler(log, charityClient))
-	router.Post("/api/charity/donate", charity.NewDonateHandler(log, charityClient))
+	router.Get("/api/charity", charity.NewGetCollectionsHandler(charityClient))
+	router.Get("/api/charity/categories", charity.NewGetCategoriesHandler(charityClient))
+	router.Post("/api/charity/donate", charity.NewDonateHandler(charityClient))
 
-	router.Get("/api/votes", votes.NewGetVotesHandler(log, votesClient))
-	router.Get("/api/votes/categories", votes.NewGetCategoriesHandler(log, votesClient))
-	router.Get("/api/votes/info", votes.NewGetVoteInfoHandler(log, votesClient))
-	router.Post("/api/votes/rate", votes.NewVoteRateHandler(log, votesClient))
-	router.Post("/api/votes/petition", votes.NewVotePetitionHandler(log, votesClient))
-	router.Post("/api/votes/choice", votes.NewVoteChoiceHandler(log, votesClient))
+	router.Get("/api/votes", votes.NewGetVotesHandler(votesClient))
+	router.Get("/api/votes/categories", votes.NewGetCategoriesHandler(votesClient))
+	router.Get("/api/votes/info", votes.NewGetVoteInfoHandler(votesClient))
+	router.Post("/api/votes/rate", votes.NewVoteRateHandler(votesClient))
+	router.Post("/api/votes/petition", votes.NewVotePetitionHandler(votesClient))
+	router.Post("/api/votes/choice", votes.NewVoteChoiceHandler(votesClient))
 
-	router.Post("/api/auth/sign_up", auth.NewSignUpHandler(log, authClient))
-	router.Post("/api/auth/sign_in", auth.NewSignInHandler(log, authClient))
+	router.Post("/api/auth/sign_up", auth.NewSignUpHandler(authClient))
+	router.Post("/api/auth/sign_in", auth.NewSignInHandler(authClient))
 	router.Post("/api/auth/refresh_tokens", auth.NewRefreshTokensHandler(authClient))
 	router.Post("/api/auth/logout", auth.NewLogoutHandler(authClient))
 	router.Get("/api/auth/confirm/{token}", auth.NewConfirmEmailPageHandler(authClient))
@@ -273,11 +270,11 @@ func setupRouter(cfg *config.Config, log *slog.Logger, charityClient proto_chari
 
 	router.Handle("/metrics", promhttp.Handler())
 
-	log.Info("Router successfully created with defined routes")
+	log.Info().Msg("Router successfully created with defined routes")
 	return router
 }
 
-func startServer(cfg *config.Config, router *chi.Mux, log *slog.Logger) {
+func startServer(cfg *config.Config, router *chi.Mux) {
 	srv := http.Server{
 		Addr:         cfg.LocalAddress,
 		Handler:      router,
@@ -286,13 +283,13 @@ func startServer(cfg *config.Config, router *chi.Mux, log *slog.Logger) {
 		IdleTimeout:  cfg.IdleTimeout,
 	}
 
-	log.Info("Starting HTTP server", slog.String("address", cfg.LocalAddress))
+	log.Info().Msg("Starting HTTP server")
 	if err := srv.ListenAndServe(); err != nil {
-		log.Error("Server encountered an error", slog.String("address", cfg.LocalAddress), slog.Any("error", err))
+		log.Error().Msg("Server encountered an error")
 		return
 	}
 
-	log.Info("Server shutdown gracefully", slog.String("address", cfg.LocalAddress))
+	log.Info().Msg("Server shutdown gracefully")
 }
 
 func prometheusMiddleware(next http.Handler) http.Handler {
@@ -342,7 +339,7 @@ func setupWebSocket() *websocket.Hub {
 func setupKafka(config *config.Config) *kafka.KafkaService {
 	kafkaService, err := kafka.NewKafkaService(config)
 	if err != nil {
-		log.Fatalf("Ошибка создания Kafka сервиса: %v", err)
+		log.Fatal().Msg("Ошибка создания Kafka сервиса: " + err.Error())
 	}
 
 	return kafkaService

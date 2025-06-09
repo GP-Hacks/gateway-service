@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"log/slog"
 	"net/http"
 
 	common "github.com/GP-Hacks/kdt2024-commons/json"
@@ -15,7 +14,7 @@ type signInReq struct {
 	Password string `json:"password"`
 }
 
-func NewSignInHandler(log *slog.Logger, authClient proto.AuthServiceClient) http.HandlerFunc {
+func NewSignInHandler(authClient proto.AuthServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -47,7 +46,7 @@ func NewSignInHandler(log *slog.Logger, authClient proto.AuthServiceClient) http
 				common.WriteError(w, http.StatusUnauthorized, "Invalid credentials")
 				return
 			}
-			log.Debug("failed sign in: %v", err)
+			// log.Debug("failed sign in: %v", err)
 			common.WriteError(w, http.StatusInternalServerError, "")
 			return
 		}

@@ -1,13 +1,12 @@
 package places
 
 import (
+	"net/http"
+
 	"github.com/GP-Hacks/kdt2024-commons/api/proto"
 	"github.com/GP-Hacks/kdt2024-commons/json"
-	"github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"log/slog"
-	"net/http"
 )
 
 type GetPlacesResponseWithDefault struct {
@@ -54,24 +53,24 @@ func withDefaultValues(resp *proto.GetPlacesResponse) *GetPlacesResponseWithDefa
 	return def
 }
 
-func NewGetPlacesHandler(log *slog.Logger, placesClient proto.PlacesServiceClient) http.HandlerFunc {
+func NewGetPlacesHandler(placesClient proto.PlacesServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handler.places.get.New"
 		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		logger := log.With(
-			slog.String("operation", op),
-			slog.String("request_id", reqID),
-			slog.String("client_ip", r.RemoteAddr),
-			slog.String("method", r.Method),
-			slog.String("url", r.URL.String()),
-		)
-
-		logger.Info("Processing request to get places")
+		// reqID := middleware.GetReqID(ctx)
+		// logger := log.With(
+		// 	slog.String("operation", op),
+		// 	slog.String("request_id", reqID),
+		// 	slog.String("client_ip", r.RemoteAddr),
+		// 	slog.String("method", r.Method),
+		// 	slog.String("url", r.URL.String()),
+		// )
+		//
+		// logger.Info("Processing request to get places")
 
 		select {
 		case <-ctx.Done():
-			logger.Warn("Request was cancelled by the client", slog.String("reason", ctx.Err().Error()))
+			// logger.Warn("Request was cancelled by the client", slog.String("reason", ctx.Err().Error()))
 			http.Error(w, "Request was cancelled", http.StatusRequestTimeout)
 			return
 		default:
@@ -80,7 +79,7 @@ func NewGetPlacesHandler(log *slog.Logger, placesClient proto.PlacesServiceClien
 		category := r.URL.Query().Get("category")
 
 		if category == "" {
-			logger.Warn("Invalid category parameter")
+			// logger.Warn("Invalid category parameter")
 			json.WriteError(w, http.StatusBadRequest, "Invalid category parameter")
 			return
 		}
@@ -90,17 +89,17 @@ func NewGetPlacesHandler(log *slog.Logger, placesClient proto.PlacesServiceClien
 		resp, err := placesClient.GetPlaces(ctx, &request)
 		if err != nil {
 			if status.Code(err) == codes.NotFound {
-				logger.Warn("No places found for the given criteria", slog.String("category", request.GetCategory()), slog.Float64("latitude", request.GetLatitude()), slog.Float64("longitude", request.GetLongitude()))
+				// logger.Warn("No places found for the given criteria", slog.String("category", request.GetCategory()), slog.Float64("latitude", request.GetLatitude()), slog.Float64("longitude", request.GetLongitude()))
 				json.WriteError(w, http.StatusNotFound, "No places found for the given criteria")
 				return
 			}
-			logger.Error("Failed to retrieve places from gRPC service", slog.String("error", err.Error()))
+			// logger.Error("Failed to retrieve places from gRPC service", slog.String("error", err.Error()))
 			json.WriteError(w, http.StatusInternalServerError, "Could not retrieve places")
 			return
 		}
 
 		response := withDefaultValues(resp)
-		logger.Debug("Places successfully retrieved", slog.Any("response", response))
+		// logger.Debug("Places successfully retrieved", slog.Any("response", response))
 		json.WriteJSON(w, http.StatusOK, response)
 	}
 }

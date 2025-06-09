@@ -1,15 +1,13 @@
 package votes
 
 import (
-	"fmt"
-	"github.com/GP-Hacks/kdt2024-commons/api/proto"
-	"github.com/GP-Hacks/kdt2024-commons/json"
-	"github.com/go-chi/chi/v5/middleware"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/GP-Hacks/kdt2024-commons/api/proto"
+	"github.com/GP-Hacks/kdt2024-commons/json"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type GetChoiceInfoResponseWithDefault struct {
@@ -51,24 +49,24 @@ func withDefaultChoiceInfo(resp *proto.GetChoiceInfoResponse) *GetChoiceInfoResp
 	}
 }
 
-func NewVoteChoiceHandler(log *slog.Logger, votesClient proto.VotesServiceClient) http.HandlerFunc {
+func NewVoteChoiceHandler(votesClient proto.VotesServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handler.votes.voteChoice.New"
 		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		logger := log.With(
-			slog.String("operation", op),
-			slog.String("request_id", reqID),
-			slog.String("client_ip", r.RemoteAddr),
-			slog.String("method", r.Method),
-			slog.String("url", r.URL.String()),
-		)
-
-		logger.Info("Processing vote choice request")
+		// reqID := middleware.GetReqID(ctx)
+		// logger := log.With(
+		// 	slog.String("operation", op),
+		// 	slog.String("request_id", reqID),
+		// 	slog.String("client_ip", r.RemoteAddr),
+		// 	slog.String("method", r.Method),
+		// 	slog.String("url", r.URL.String()),
+		// )
+		//
+		// logger.Info("Processing vote choice request")
 
 		select {
 		case <-ctx.Done():
-			logger.Warn("Request was cancelled by the client", slog.String("reason", ctx.Err().Error()))
+			// logger.Warn("Request was cancelled by the client", slog.String("reason", ctx.Err().Error()))
 			http.Error(w, "Request was cancelled", http.StatusRequestTimeout)
 			return
 		default:
@@ -76,26 +74,26 @@ func NewVoteChoiceHandler(log *slog.Logger, votesClient proto.VotesServiceClient
 
 		token := r.Header.Get("Authorization")
 		if token == "" {
-			logger.Warn("Missing Authorization header")
+			// logger.Warn("Missing Authorization header")
 			json.WriteError(w, http.StatusUnauthorized, "Authorization required")
 			return
 		}
 
 		var request proto.VoteChoiceRequest
 		if err := json.ReadJSON(r, &request); err != nil {
-			logger.Error("Failed to parse JSON input", slog.String("error", err.Error()))
+			// logger.Error("Failed to parse JSON input", slog.String("error", err.Error()))
 			json.WriteError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
 		if request.GetVoteId() == 0 {
-			logger.Warn("Invalid vote_id field in request", slog.String("request_payload", fmt.Sprintf("%+v", request)))
+			// logger.Warn("Invalid vote_id field in request", slog.String("request_payload", fmt.Sprintf("%+v", request)))
 			json.WriteError(w, http.StatusBadRequest, "Invalid vote_id field")
 			return
 		}
 
 		if request.GetChoice() == "" {
-			logger.Warn("Invalid choice field in request", slog.String("request_payload", fmt.Sprintf("%+v", request)))
+			// logger.Warn("Invalid choice field in request", slog.String("request_payload", fmt.Sprintf("%+v", request)))
 			json.WriteError(w, http.StatusBadRequest, "Invalid choice field")
 			return
 		}
@@ -105,17 +103,17 @@ func NewVoteChoiceHandler(log *slog.Logger, votesClient proto.VotesServiceClient
 		_, err := votesClient.VoteChoice(ctx, &request)
 		if err != nil {
 			if status.Code(err) == codes.NotFound {
-				logger.Warn("Vote choice not found", slog.String("error", err.Error()), slog.Any("request", request))
+				// logger.Warn("Vote choice not found", slog.String("error", err.Error()), slog.Any("request", request))
 				json.WriteError(w, http.StatusNotFound, "Choice not found")
 				return
 			}
-			logger.Error("Failed to record vote", slog.String("error", err.Error()), slog.Any("request", request))
+			// logger.Error("Failed to record vote", slog.String("error", err.Error()), slog.Any("request", request))
 			json.WriteError(w, http.StatusInternalServerError, "Could not record vote")
 			return
 		}
 
 		response := map[string]string{"response": "Vote recorded successfully"}
-		logger.Info("Vote recorded successfully", slog.Any("response", response))
+		// logger.Info("Vote recorded successfully", slog.Any("response", response))
 		json.WriteJSON(w, http.StatusOK, response)
 	}
 }

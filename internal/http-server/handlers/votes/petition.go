@@ -1,12 +1,11 @@
 package votes
 
 import (
-	"github.com/GP-Hacks/kdt2024-commons/api/proto"
-	"github.com/GP-Hacks/kdt2024-commons/json"
-	"github.com/go-chi/chi/v5/middleware"
-	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/GP-Hacks/kdt2024-commons/api/proto"
+	"github.com/GP-Hacks/kdt2024-commons/json"
 )
 
 type GetPetitionInfoResponseWithDefault struct {
@@ -48,24 +47,24 @@ func withDefaultPetitionInfo(resp *proto.GetPetitionInfoResponse) *GetPetitionIn
 	}
 }
 
-func NewVotePetitionHandler(log *slog.Logger, votesClient proto.VotesServiceClient) http.HandlerFunc {
+func NewVotePetitionHandler(votesClient proto.VotesServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handler.votes.votePetition.New"
 		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		logger := log.With(
-			slog.String("operation", op),
-			slog.String("request_id", reqID),
-			slog.String("client_ip", r.RemoteAddr),
-			slog.String("method", r.Method),
-			slog.String("url", r.URL.String()),
-		)
-
-		logger.Info("Received request to vote on petition")
+		// reqID := middleware.GetReqID(ctx)
+		// logger := log.With(
+		// 	slog.String("operation", op),
+		// 	slog.String("request_id", reqID),
+		// 	slog.String("client_ip", r.RemoteAddr),
+		// 	slog.String("method", r.Method),
+		// 	slog.String("url", r.URL.String()),
+		// )
+		//
+		// logger.Info("Received request to vote on petition")
 
 		select {
 		case <-ctx.Done():
-			logger.Warn("Request cancelled by the client", slog.String("reason", ctx.Err().Error()))
+			// logger.Warn("Request cancelled by the client", slog.String("reason", ctx.Err().Error()))
 			http.Error(w, "Request was cancelled", http.StatusRequestTimeout)
 			return
 		default:
@@ -73,26 +72,26 @@ func NewVotePetitionHandler(log *slog.Logger, votesClient proto.VotesServiceClie
 
 		token := r.Header.Get("Authorization")
 		if token == "" {
-			logger.Warn("Missing authorization token")
+			// logger.Warn("Missing authorization token")
 			json.WriteError(w, http.StatusUnauthorized, "Authorization required")
 			return
 		}
 
 		var request proto.VotePetitionRequest
 		if err := json.ReadJSON(r, &request); err != nil {
-			logger.Error("Failed to parse JSON input", slog.String("error", err.Error()))
+			// logger.Error("Failed to parse JSON input", slog.String("error", err.Error()))
 			json.WriteError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
 		if request.GetVoteId() == 0 {
-			logger.Warn("Invalid or missing vote_id field", slog.Any("request", request))
+			// logger.Warn("Invalid or missing vote_id field", slog.Any("request", request))
 			json.WriteError(w, http.StatusBadRequest, "Invalid vote_id field")
 			return
 		}
 
 		if request.GetSupport() == "" {
-			logger.Warn("Invalid or missing support field", slog.Any("request", request))
+			// logger.Warn("Invalid or missing support field", slog.Any("request", request))
 			json.WriteError(w, http.StatusBadRequest, "Invalid support field")
 			return
 		}
@@ -101,12 +100,12 @@ func NewVotePetitionHandler(log *slog.Logger, votesClient proto.VotesServiceClie
 
 		resp, err := votesClient.VotePetition(ctx, &request)
 		if err != nil {
-			logger.Error("Failed to record vote", slog.String("error", err.Error()))
+			// logger.Error("Failed to record vote", slog.String("error", err.Error()))
 			json.WriteError(w, http.StatusInternalServerError, "Could not record vote")
 			return
 		}
 
-		logger.Info("Vote recorded successfully", slog.Any("response", resp))
+		// logger.Info("Vote recorded successfully", slog.Any("response", resp))
 		json.WriteJSON(w, http.StatusOK, resp)
 	}
 }

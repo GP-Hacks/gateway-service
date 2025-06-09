@@ -1,34 +1,32 @@
 package charity
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/GP-Hacks/kdt2024-commons/json"
 	proto "github.com/GP-Hacks/proto/pkg/api/charity"
-	"github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func NewDonateHandler(log *slog.Logger, charityClient proto.CharityServiceClient) http.HandlerFunc {
+func NewDonateHandler(charityClient proto.CharityServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handler.charity.donate.New"
 		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		logger := log.With(
-			slog.String("operation", op),
-			slog.String("request_id", reqID),
-			slog.String("client_ip", r.RemoteAddr),
-			slog.String("method", r.Method),
-			slog.String("url", r.URL.String()),
-		)
+		// reqID := middleware.GetReqID(ctx)
+		// logger := log.With(
+		// 	slog.String("operation", op),
+		// 	slog.String("request_id", reqID),
+		// 	slog.String("client_ip", r.RemoteAddr),
+		// 	slog.String("method", r.Method),
+		// 	slog.String("url", r.URL.String()),
+		// )
 
-		logger.Info("Processing donation request")
+		// logger.Info("Processing donation request")
 
 		select {
 		case <-ctx.Done():
-			logger.Warn("Request was cancelled by the client")
+			// logger.Warn("Request was cancelled by the client")
 			http.Error(w, "Request was cancelled", http.StatusRequestTimeout)
 			return
 		default:
@@ -36,7 +34,7 @@ func NewDonateHandler(log *slog.Logger, charityClient proto.CharityServiceClient
 
 		token := r.Header.Get("Authorization")
 		if token == "" {
-			logger.Warn("Authorization header missing")
+			// logger.Warn("Authorization header missing")
 			json.WriteError(w, http.StatusUnauthorized, "Authorization required")
 			return
 		}
@@ -47,19 +45,19 @@ func NewDonateHandler(log *slog.Logger, charityClient proto.CharityServiceClient
 		}
 
 		if err := json.ReadJSON(r, &request); err != nil {
-			logger.Error("Failed to parse JSON request", slog.String("error", err.Error()))
+			// logger.Error("Failed to parse JSON request", slog.String("error", err.Error()))
 			json.WriteError(w, http.StatusBadRequest, "Invalid JSON input")
 			return
 		}
 
 		if request.CollectionId <= 0 {
-			logger.Warn("Invalid collection_id field", slog.Int("collection_id", request.CollectionId))
+			// logger.Warn("Invalid collection_id field", slog.Int("collection_id", request.CollectionId))
 			json.WriteError(w, http.StatusBadRequest, "Invalid collection_id field")
 			return
 		}
 
 		if request.Amount <= 0 {
-			logger.Warn("Invalid amount field", slog.Int("amount", request.Amount))
+			// logger.Warn("Invalid amount field", slog.Int("amount", request.Amount))
 			json.WriteError(w, http.StatusBadRequest, "Invalid amount field")
 			return
 		}
@@ -73,16 +71,16 @@ func NewDonateHandler(log *slog.Logger, charityClient proto.CharityServiceClient
 		resp, err := charityClient.Donate(ctx, protoRequest)
 		if err != nil {
 			if status.Code(err) == codes.NotFound {
-				logger.Warn("Collection not found for donation", slog.Int("collection_id", request.CollectionId))
+				// logger.Warn("Collection not found for donation", slog.Int("collection_id", request.CollectionId))
 				json.WriteError(w, http.StatusNotFound, "Collection not found")
 				return
 			}
-			logger.Error("Failed to process donation", slog.String("error", err.Error()))
+			// logger.Error("Failed to process donation", slog.String("error", err.Error()))
 			json.WriteError(w, http.StatusInternalServerError, "Could not save your donation")
 			return
 		}
 
-		logger.Info("Donation processed successfully", slog.Any("response", resp))
+		// logger.Info("Donation processed successfully", slog.Any("response", resp))
 		json.WriteJSON(w, http.StatusOK, resp)
 	}
 }

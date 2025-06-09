@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,7 +8,6 @@ import (
 	"github.com/GP-Hacks/kdt2024-commons/json"
 	"github.com/GP-Hacks/kdt2024-gateway/internal/utils"
 	proto "github.com/GP-Hacks/proto/pkg/api/chat"
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 type historyMsg struct {
@@ -18,24 +16,23 @@ type historyMsg struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 }
 
-func NewGetHistoryHandler(log *slog.Logger, chatClient proto.ChatServiceClient) http.HandlerFunc {
+func NewGetHistoryHandler(chatClient proto.ChatServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handler.chat.send.New"
 		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		logger := log.With(
-			slog.String("operation", op),
-			slog.String("request_id", reqID),
-			slog.String("client_ip", r.RemoteAddr),
-			slog.String("method", r.Method),
-			slog.String("url", r.URL.String()),
-		)
-
-		logger.Info("Handling request to send message")
-
+		// logger := log.With(
+		// 	slog.String("operation", op),
+		// 	slog.String("request_id", reqID),
+		// 	slog.String("client_ip", r.RemoteAddr),
+		// 	slog.String("method", r.Method),
+		// 	slog.String("url", r.URL.String()),
+		// )
+		//
+		// logger.Info("Handling request to send message")
+		//
 		select {
 		case <-ctx.Done():
-			logger.Warn("Request was cancelled by the client")
+			// logger.Warn("Request was cancelled by the client")
 			http.Error(w, "Request was cancelled", http.StatusRequestTimeout)
 			return
 		default:
@@ -88,7 +85,7 @@ func NewGetHistoryHandler(log *slog.Logger, chatClient proto.ChatServiceClient) 
 			}
 		}
 
-		logger.Debug("Message sent successfully", slog.Any("response", resp))
+		// logger.Debug("Message sent successfully", slog.Any("response", resp))
 		json.WriteJSON(w, http.StatusOK, resp)
 	}
 }

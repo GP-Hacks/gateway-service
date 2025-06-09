@@ -3,11 +3,9 @@ package charity
 import (
 	proto "github.com/GP-Hacks/proto/pkg/api/charity"
 
-	"log/slog"
 	"net/http"
 
 	"github.com/GP-Hacks/kdt2024-commons/json"
-	"github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -49,24 +47,24 @@ func withDefaultValues(resp *proto.GetCollectionsResponse) *GetCollectionsRespon
 	return def
 }
 
-func NewGetCollectionsHandler(log *slog.Logger, charityClient proto.CharityServiceClient) http.HandlerFunc {
+func NewGetCollectionsHandler(charityClient proto.CharityServiceClient) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handler.charity.getCollections.New"
 		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		logger := log.With(
-			slog.String("operation", op),
-			slog.String("request_id", reqID),
-			slog.String("client_ip", r.RemoteAddr),
-			slog.String("method", r.Method),
-			slog.String("url", r.URL.String()),
-		)
-
-		logger.Info("Received request to get collections")
+		// reqID := middleware.GetReqID(ctx)
+		// logger := log.With(
+		// 	slog.String("operation", op),
+		// 	slog.String("request_id", reqID),
+		// 	slog.String("client_ip", r.RemoteAddr),
+		// 	slog.String("method", r.Method),
+		// 	slog.String("url", r.URL.String()),
+		// )
+		//
+		// logger.Info("Received request to get collections")
 
 		select {
 		case <-ctx.Done():
-			logger.Warn("Request was cancelled by the client")
+			// logger.Warn("Request was cancelled by the client")
 			http.Error(w, "Request was cancelled", http.StatusRequestTimeout)
 			return
 		default:
@@ -75,28 +73,28 @@ func NewGetCollectionsHandler(log *slog.Logger, charityClient proto.CharityServi
 		category := r.URL.Query().Get("category")
 
 		if category == "" {
-			logger.Warn("Invalid category parameter")
+			// logger.Warn("Invalid category parameter")
 			json.WriteError(w, http.StatusBadRequest, "Invalid category parameter")
 			return
 		}
 
 		request := proto.GetCollectionsRequest{Category: category}
 
-		logger.Info("Fetching collections for category", slog.String("category", request.GetCategory()))
+		// logger.Info("Fetching collections for category", slog.String("category", request.GetCategory()))
 
 		resp, err := charityClient.GetCollections(ctx, &request)
 		if err != nil {
 			if status.Code(err) == codes.NotFound {
-				logger.Warn("Collections not found for category", slog.String("category", request.GetCategory()))
+				// logger.Warn("Collections not found for category", slog.String("category", request.GetCategory()))
 				json.WriteError(w, http.StatusNotFound, "Collections not found")
 				return
 			}
-			logger.Error("Failed to fetch collections", slog.String("error", err.Error()))
+			// logger.Error("Failed to fetch collections", slog.String("error", err.Error()))
 			json.WriteError(w, http.StatusInternalServerError, "Could not retrieve collections")
 			return
 		}
 
-		logger.Debug("Successfully retrieved collections", slog.Int("num_collections", len(resp.GetResponse())))
+		// logger.Debug("Successfully retrieved collections", slog.Int("num_collections", len(resp.GetResponse())))
 
 		json.WriteJSON(w, http.StatusOK, withDefaultValues(resp))
 	}
